@@ -1,0 +1,14 @@
+{
+    "apps": [
+        {
+            "name": "weatherApp",
+            "script": "./app.js",
+            "node_args": "--max_old_space_size=8192"
+        },
+        {
+            "name": "CronJobs",
+            "script": "./cron_job.js",
+            "node_args": "--max_old_space_size=8192"
+        }
+    ]
+}
