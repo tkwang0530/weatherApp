@@ -1,7 +1,7 @@
+const weatherRecordController = require('../controllers/weather_record')
+
 const routes = require('express').Router();
 
-routes.get('/', (req, res) => {
-    res.status(200).json({ message: 'This is weather_record route!'});
-})
+routes.get('/', weatherRecordController.getWeatherStationsWithRecordsFromCityNames)
 
 module.exports = routes;
