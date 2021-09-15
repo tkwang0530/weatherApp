@@ -1,13 +1,13 @@
 const cron = require('node-cron');
 require('./knex')
 const Promise = require("bluebird");
-const CityService = require('./service/city');
-const WeatherRecordService = require('./service/weather_record');
-const WeatherStationService = require('./service/weather_station');
 const axios = require('axios');
-const moment = require('moment-timezone')
+const moment = require('moment-timezone');
+const CityModel = require('./model/city');
+const WeatherRecordModel = require('./model/weather_record');
+const WeatherStationMoel = require('./model/weather_station');
 
-const getRecordsFromCities = async (city_names) => {
+const getWeatherInfosByCities = async (city_names) => {
     const city_name_set = new Set(city_names)
     const response = await axios.get("https://opendata.cwb.gov.tw/api/v1/rest/datastore/O-A0002-001?Authorization=CWB-594ED2C4-2CA0-4107-90FD-5E62F70516F2&parameterName=CITY&limit=100"
     )
@@ -35,31 +35,32 @@ const getRecordsFromCities = async (city_names) => {
     return modified_records
 }
 
-
 // retrieve weather records from specific cities per hour
 cron.schedule('30 * * * *', async () => {
-    console.log(`retrieve weather records job started at ${moment().tz("Asia/Taipei")}`)
+    try {
+        console.log(`retrieve weather records job started at ${moment().tz("Asia/Taipei")}`)
     const city_names = ["臺北市", "新北市", "桃園市"]
-    const modified_records = await getRecordsFromCities(city_names)
+    const weather_infos = await getWeatherInfosByCities(city_names)
 
-    await Promise.map(modified_records, async (record) => {
-        const city = await new CityService().findByName(record.city.name).then(async (city) => {
+    await Promise.mapSeries(weather_infos, async (record) => {
+        await CityModel.query().findOne({ name: record.city.name}).then(async (city) => {
             if (!city) {
-                city = await new CityService().add({name: record.city.name})
+                await CityModel.query().insert({name: record.city.name})
             }
-            return city
         })
-
-        const weather_station = await new WeatherStationService().findByStationId(record.weather_station.stationId).then(async (weather_station) => {
+        await WeatherStationMoel.query().findOne({ stationId: record.weather_station.stationId }).then(async (weather_station) => {
             if (!weather_station) {
-                record.weather_station.city_id = city.id
-                console.log(record.weather_station)
-                weather_station = await new WeatherStationService().add(record.weather_station)
+                const { id } = await CityModel.query().findOne({ name: record.city.name }).select('id')
+                record.weather_station.city_id = id
+                await WeatherStationMoel.query().insert(record.weather_station)
             }
-            return weather_station
         })
-        record.weather_record.weather_station_id = weather_station.id
-        await new WeatherRecordService().add(record.weather_record)
+        const { id } = await WeatherStationMoel.query().findOne({stationId: record.weather_station.stationId}).select("id")
+        record.weather_record.weather_station_id = id
+        await WeatherRecordModel.query().insert(record.weather_record)
     })
     console.log(`retrieve weather records job finished at ${moment().tz("Asia/Taipei")}`)
+    } catch (error) {
+        console.log(error)
+    }
 })
