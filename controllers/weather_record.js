@@ -2,7 +2,6 @@ require('../knex')
 const WeatherStationModel = require('../model/weather_station');
 const CityModel = require('../model/city')
 const Promise = require('bluebird');
-const { ErrorHandler } = require('../helpers/error');
 
 exports.getWeatherStationsWithRecordsFromCityNames = async (req, res, next) => {
     try {
